@@ -1,0 +1,4 @@
+services:
+  example:
+    url: http://localhost:8181
+
