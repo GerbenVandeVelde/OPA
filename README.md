@@ -8,7 +8,7 @@ Ik ben het meeste tijd kwijt geraakt door te denken dat mijn programma werktte, 
 Dit zijn mijn finale configuraties (de opa.rego staat niet in mijn files aangezien ik eerst een makkelijke werkend wou krijgen): 
 
 ## config.yaml
-
+```
 services:
   - name: "app"
     url: "http://localhost:8181/v1/data/app"
@@ -16,9 +16,9 @@ services:
 labels:
   - name: "example"
     value: "policy"
-
+```
 ## opa.rego
-
+```
 package app.abac
 
 default allow := false
@@ -55,8 +55,9 @@ decision = {
     "message": deny_message
 } if not allow
 
-
+```
 ## Program.cs
+```
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -164,7 +165,7 @@ app.Use(async (context, next) =>
 app.MapControllers();
 
 app.Run();
-
+```
 // Class to handle OPA response structure
 public class OpaDecision
 {
