@@ -1,4 +1,6 @@
 # OPA
+## Sessie 1 voor 4/10
+Onderaan kan je zien wat ik hebben liggen aanpassen na onze les waarin we alles nog besproken hebben. Ik heb mijn laatste files niet meer geüpload, maar ze staan vanonder mee in de readme gequoteerd.
 
 Ik heb er een 4 tal uurtjes mee bezig geweest om te zoeken naar stap 4 en 5, helaas heb ik dit nog steeds niet succesvol tot een einde kunnen brengen.
 Hieronder zal ik even uitleggen wat ik allemaal geprobeerd heb.
@@ -166,9 +168,109 @@ app.MapControllers();
 
 app.Run();
 ```
-// Class to handle OPA response structure
-public class OpaDecision
-{
-    public bool allow { get; set; }
-    public string message { get; set; } // If you want to send a custom message back
+
+
+# Sessie 2
+
+Ik ben opnieuw begonnen vanop de checkpoint en heb alle configuratie aangepast zodat deze met mijn auth0 werkt. Helaas kreeg ik na 2u lang proberen nog steeds een 403 forbidden, nalang zoeken op authorization kant wat het kon zijn heb ik opgegeven met dit als mijn laatste configuratie van bestanden.
+
+
+### opa.rego
+
+```
+package barmanagement
+
+import future.keywords
+
+default allow := false
+
+iss := "https://dev-fmcp2mpbn7fb2ugn.us.auth0.com"
+aud := "bar-auth0-api"
+
+# Check if the request is for ordering Fristi
+allow if {
+    input.request.path == "/api/bar"
+    input.request.method == "POST"
+    input.request.body.DrinkName == "Fristi"
+    some r in claims.role
+    r == "customer"
 }
+
+# Check if the request is for ordering Beer
+allow if {
+    input.request.path == "/api/bar"
+    input.request.method == "POST"
+    input.request.body.DrinkName == "Beer"
+    some r in claims.role
+    r == "customer"
+    to_number(claims.age) >= 16
+}
+
+# Check if the request is for managing the bar
+allow if {
+    input.request.path == "/api/managebar"
+    input.request.method == "POST"
+    some r in claims.role
+    r == "bartender"
+}
+
+```
+### Program.cs
+```
+using Build.Security.AspNetCore.Middleware.Extensions;
+using Build.Security.AspNetCore.Middleware.Request;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Read values from appsettings.json
+var jwtAuthority = builder.Configuration["Jwt:Authority"];
+var jwtAudience = builder.Configuration["Jwt:Audience"];
+var corsOrigin = builder.Configuration["Cors:Origin"];
+var opaBaseAddress = builder.Configuration["OPA:BaseAddress"];
+
+// Add services to the container.
+builder.Services.AddControllers();
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+}).AddJwtBearer(options =>
+{
+    options.Authority = jwtAuthority;
+    options.Audience = jwtAudience;
+
+});
+
+//Add OPA integration
+builder.Services.AddBuildAuthorization(options =>
+{
+    options.Enable = true;
+    options.BaseAddress = opaBaseAddress;
+    options.PolicyPath = "/barmanagement/allow";
+    options.AllowOnFailure = false;
+    options.Timeout = 5;
+    options.IncludeHeaders = true;
+    options.IncludeBody = true;
+});
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+app.UseCors(options => options
+    .WithOrigins(corsOrigin)
+    .AllowAnyMethod()
+    .AllowAnyHeader());
+
+app.UseAuthentication();
+
+// Add OPA integration
+app.UseBuildAuthorization();
+
+app.MapControllers();
+
+app.Run();
+
+```
+
+
